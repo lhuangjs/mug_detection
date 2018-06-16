@@ -1,0 +1,10 @@
+D: 
+cd D:\@project\program\coding\python\butterfly\mug_detection
+activate MaskRCNN
+
+# 训练模型
+python mug.py train --dataset D:\@project\program\coding\python\butterfly\mug_detection\dataset --weights=coco
+
+
+# 使用模型
+python mug.py detect --weights=D:\@project\program\coding\python\butterfly\Mask\Mask_RCNN\logs\mug20180616T1605\mask_rcnn_mug_0002.h5 --image=D:\@project\program\coding\python\butterfly\mug_detection\dataset\test\IMG_2.jpeg
