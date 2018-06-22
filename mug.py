@@ -21,10 +21,10 @@ Usage: import the module (see Jupyter notebooks for examples), or run from
     python3 mug.py train --dataset=/path/to/mug/dataset --weights=imagenet
 
     # Apply mug detection to an image
-    python3 mug.py detect --weights=/path/to/weights/file.h5 --image=<URL or path to file>
+    python3 mug.py detect --weights=/path/to/weights/file.h5 --images=<URL or path to directory that saves the images needed to be detected> --result=<URL or path to result directory>
 
     # Apply mug detection to an image using the last weights you trained
-    python3 mug.py detect --weights=last --image=<URL or path to file>
+    python3 mug.py detect --weights=last --images=<URL or path to directory that saves the images needed to be detected> --result=<URL or path to result directory>
 """
 
 import os
@@ -68,7 +68,7 @@ class MugConfig(Config):
     NUM_CLASSES = 1 + 1  # Background + mug
 
     # 每个epoch训练的步数
-    STEPS_PER_EPOCH = 1
+    STEPS_PER_EPOCH = 100
 
     # 当小于90%置信度时跳过检测
     DETECTION_MIN_CONFIDENCE = 0.9
@@ -178,12 +178,25 @@ def train(model):
                 epochs=30,
                 layers='heads')
 
-def detect(model, image_path = None):
-        
-        print("Running on {}".format(args.image))
+def detect(model, images_dir = None, result_dir = None):
+
+    import shutil
+
+    # 判断result_dir是否存在，不存在则创建，存在则清空
+    if os.path.exists(result_dir):
+        print("delete directory {}".format(result_dir))
+        shutil.rmtree(result_dir)
+    os.mkdir(result_dir)
+    
+    # 读取目录中所有图片
+    file_list = os.listdir(images_dir)
+
+    for image_file in file_list:
+        image_file = os.path.join(images_dir, image_file)
+        print("Running on {}".format(image_file))
         
         # 读取图片
-        image = skimage.io.imread(args.image)
+        image = skimage.io.imread(image_file)
         
         # 目标检测
         r = model.detect([image], verbose=1)[0]
@@ -193,6 +206,7 @@ def detect(model, image_path = None):
         
         # 保存结果
         file_name = "mug_{:%Y%m%dT%H%M%S}.png".format(datetime.datetime.now())
+        file_name = os.path.join(result_dir, file_name)
         skimage.io.imsave(file_name, image_with_box)
         print("检测完成，结果保存在%s" % file_name)
 
@@ -210,78 +224,6 @@ def draw_box(image, boxes):
         cv2.drawContours(image, [ctr], -1, (0, 0, 255), thickness=1)
     
     return image
-
-
-# def color_splash(image, mask):
-#     """Apply color splash effect.
-#     image: RGB image [height, width, 3]
-#     mask: instance segmentation mask [height, width, instance count]
-
-#     Returns result image.
-#     """
-#     # Make a grayscale copy of the image. The grayscale copy still
-#     # has 3 RGB channels, though.
-#     gray = skimage.color.gray2rgb(skimage.color.rgb2gray(image)) * 255
-#     # Copy color pixels from the original color image where mask is set
-#     if mask.shape[-1] > 0:
-#         # We're treating all instances as one, so collapse the mask into one layer
-#         mask = (np.sum(mask, -1, keepdims=True) >= 1)
-#         splash = np.where(mask, image, gray).astype(np.uint8)
-#     else:
-#         splash = gray.astype(np.uint8)
-#     return splash
-
-
-# def detect_and_color_splash(model, image_path=None, video_path=None):
-#     assert image_path or video_path
-
-#     # Image or video?
-#     if image_path:
-#         # Run model detection and generate the color splash effect
-#         print("Running on {}".format(args.image))
-#         # Read image
-#         image = skimage.io.imread(args.image)
-#         # Detect objects
-#         r = model.detect([image], verbose=1)[0]
-#         # Color splash
-#         splash = color_splash(image, r['masks'])
-#         # Save output
-#         file_name = "splash_{:%Y%m%dT%H%M%S}.png".format(datetime.datetime.now())
-#         skimage.io.imsave(file_name, splash)
-#     elif video_path:
-#         import cv2
-#         # Video capture
-#         vcapture = cv2.VideoCapture(video_path)
-#         width = int(vcapture.get(cv2.CAP_PROP_FRAME_WIDTH))
-#         height = int(vcapture.get(cv2.CAP_PROP_FRAME_HEIGHT))
-#         fps = vcapture.get(cv2.CAP_PROP_FPS)
-
-#         # Define codec and create video writer
-#         file_name = "splash_{:%Y%m%dT%H%M%S}.avi".format(datetime.datetime.now())
-#         vwriter = cv2.VideoWriter(file_name,
-#                                   cv2.VideoWriter_fourcc(*'MJPG'),
-#                                   fps, (width, height))
-
-#         count = 0
-#         success = True
-#         while success:
-#             print("frame: ", count)
-#             # Read next image
-#             success, image = vcapture.read()
-#             if success:
-#                 # OpenCV returns images as BGR, convert to RGB
-#                 image = image[..., ::-1]
-#                 # Detect objects
-#                 r = model.detect([image], verbose=0)[0]
-#                 # Color splash
-#                 splash = color_splash(image, r['masks'])
-#                 # RGB -> BGR to save image to video
-#                 splash = splash[..., ::-1]
-#                 # Add image to video writer
-#                 vwriter.write(splash)
-#                 count += 1
-#         vwriter.release()
-#     print("Saved to ", file_name)
 
 
 ############################################################
@@ -307,9 +249,12 @@ if __name__ == '__main__':
                         default=DEFAULT_LOGS_DIR,
                         metavar="/path/to/logs/",
                         help='Logs and checkpoints directory (default=logs/)')
-    parser.add_argument('--image', required=False,
-                        metavar="path or URL to image",
-                        help='Image for detection')
+    parser.add_argument('--images', required=True,
+                        metavar="path or URL",
+                        help='directory path or url for saving images that need to be detected')
+    parser.add_argument('--result', required=True,
+                        metavar="path or URL",
+                        help='directory path or url for saving detection results')
 
     args = parser.parse_args()
 
@@ -317,8 +262,8 @@ if __name__ == '__main__':
     if args.command == "train":
         assert args.dataset, "Argument --dataset is required for training"
     elif args.command == "detect":
-        assert args.image or args.video,\
-               "Provide --image to apply mug detection"
+        assert args.images and args.result, \
+            "Provide --images and --result to apply mug detection"
 
     print("Weights: ", args.weights)
     print("Dataset: ", args.dataset)
@@ -374,7 +319,23 @@ if __name__ == '__main__':
     if args.command == "train":
         train(model)
     elif args.command == "detect":
-        detect(model, image_path=args.image)
+        detect(model, images_dir=args.images, result_dir=args.result)
     else:
         print("'{}' is not recognized. "
               "Use 'train' or 'detect'".format(args.command))
+
+
+# # 添加类别（source, class_id, class_name）
+# self.add_class("object", 1, "mug")
+# self.add_class("object", 2, "glass")
+# self.add_class("object", 3, "book")
+
+# ...
+
+# self.add_image(
+#     "object",
+#     image_id=a['filename'],  # 使用文件名作为唯一的id
+#     path=image_path,
+#     width=width, height=height,
+#     polygons=polygons
+#     class_ids=class_ids)

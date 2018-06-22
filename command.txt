@@ -7,4 +7,7 @@ python mug.py train --dataset D:\@project\program\coding\python\butterfly\mug_de
 
 
 # 使用模型
-python mug.py detect --weights=D:\@project\program\coding\python\butterfly\Mask\Mask_RCNN\logs\mug20180616T1605\mask_rcnn_mug_0002.h5 --image=D:\@project\program\coding\python\butterfly\mug_detection\dataset\test\IMG_2.jpeg
+python mug.py detect --weights=D:\@project\program\coding\python\butterfly\Mask\Mask_RCNN\logs\mug20180616T1843\mask_rcnn_mug_0030.h5 --images=D:\@project\program\coding\python\butterfly\mug_detection\dataset\test --result=D:\@project\program\coding\python\butterfly\mug_detection\detection_result
+
+# 复杂情况
+python mug.py detect --weights=D:\@project\program\coding\python\butterfly\Mask\Mask_RCNN\logs\mug20180616T1843\mask_rcnn_mug_0030.h5 --images=D:\@project\program\coding\python\butterfly\mug_detection\complex_env\images --result=D:\@project\program\coding\python\butterfly\mug_detection\complex_env\result
